@@ -1,0 +1,18 @@
+/* The back button on a done step only shows while the step is hovered, or while it or the button
+   has keyboard focus. It's hidden with opacity rather than removed, so it can still be tabbed to. */
+.step-back-button {
+  opacity: 0;
+  transition: opacity 0.15s ease-in-out;
+}
+
+.step-item:hover .step-back-button,
+.step-item:focus-within .step-back-button {
+  opacity: 1;
+}
+
+/* Touch screens can't hover, so it's always shown there */
+@media (hover: none) {
+  .step-back-button {
+    opacity: 1;
+  }
+}

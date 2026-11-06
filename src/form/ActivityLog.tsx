@@ -3,7 +3,7 @@ import { allFields } from './fields'
 import { estimatedMonths, monthsLabel } from './quantityEstimated'
 import { estimateColumn, fieldForColumn, type ChangeLogEntry } from './somiRequest'
 
-// Left out: comments, because the Comments section already shows them and each change is the
+// Left out: comments, because the Progress Tracker's steps already show them and each change is the
 // whole list as JSON; and the SOMI cost worksheet's columns, because they're calculated from other
 // columns, which are logged themselves
 const hiddenColumns = [

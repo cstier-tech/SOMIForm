@@ -26,7 +26,7 @@ export const workflow = [
     stage: 'sales',
     status: 'Pending Process Approval',
     step: {
-      label: 'Submit Request',
+      label: 'Submit request',
       completedText: ({ by, at }) => `Submitted by ${by} on ${at}`,
     },
   },
@@ -34,7 +34,7 @@ export const workflow = [
     stage: 'manufacturing',
     status: 'Process Approved',
     step: {
-      label: 'Process Approval',
+      label: 'Manuacturing to review request',
       completedText: ({ by, at }) => `Approved by ${by} on ${at}`,
     },
   },
@@ -42,7 +42,7 @@ export const workflow = [
     stage: 'estimating',
     status: 'Pending Estimate Approval',
     step: {
-      label: 'Upload Estimate & Enter Details',
+      label: 'Enter estimate & details',
       completedText: ({ by, at }) => `Submitted by ${by} on ${at}`,
     },
   },
@@ -50,7 +50,7 @@ export const workflow = [
     stage: 'manufacturing2',
     status: 'Pending TSP Approval',
     step: {
-      label: 'Estimate Approval',
+      label: 'Manufacturing to review estimate',
       completedText: ({ by, at }) => `Approved by ${by} on ${at}`,
     },
   },
@@ -58,26 +58,30 @@ export const workflow = [
     stage: 'sales2',
     status: 'Approved Pending PSI Number',
     step: {
-      label: 'TSP Approval',
+      label: 'Sales to review TSP',
       completedText: ({ by, at }) => `Approved by ${by} on ${at}`,
     },
   },
   { stage: 'accounting', status: 'Approved Pending Veracore Number',
     step: {
-      label: 'Enter PSI Number',
+      label: 'Enter PSI number',
       completedText: ({by, at}) => `Entered by ${by} on ${at}`,
     }
    },
   { stage: 'webSupport', status: 'Approved',
     step: {
-      label: 'Enter Veracore Number',
+      label: 'Enter Veracore number',
       completedText: ({by, at}) => `Entered by ${by} on ${at}`,
     }
    },
 ] as const satisfies readonly WorkflowEntry[]
 
+// Shown on the step a record was sent back to, until it's done again
+export const revertedText = (status: string, { by, at }: Signoff) =>
+  `Reverted to ${status} by ${by} on ${at}`
+
 // Statuses that stop a record partway through. Denied can be set by any approving stage, Canceled
-// by Sales. text is shown on the step the record stopped at.
+// by Sales. text is shown on the step a denied record stopped at, or a canceled one's own item.
 export const stopped = {
   denied: {
     status: 'Denied',
@@ -85,6 +89,8 @@ export const stopped = {
   },
   canceled: {
     status: 'Canceled',
+    // A canceled record gets its own item in the steps list, after the last step done
+    label: 'Request Canceled',
     text: ({ by, at }: Signoff) => `Canceled by ${by} on ${at}`,
   },
 } as const
@@ -105,6 +111,13 @@ export const approvedStatus = Object.fromEntries(
 export const deniedStatus: Status = stopped.denied.status
 
 export const canceledStatus: Status = stopped.canceled.status
+
+// The stage whose step is next for a record at this status; undefined once every step is done, or
+// when it's been denied or canceled
+export function nextStage(status: string | null): Stage | undefined {
+  const index = progressStatuses.indexOf(status as Status)
+  return index >= 0 ? workflow[index + 1]?.stage : undefined
+}
 
 // The status a record has once every stage is done
 export const finalStatus: Status = workflow[workflow.length - 1].status

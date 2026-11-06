@@ -1,17 +1,18 @@
 import { Offcanvas, OffcanvasCloser } from 'oa'
-import { DecisionForm, type FormDecision } from './DecisionForm'
+import { DecisionForm } from './DecisionForm'
+import type { Decision } from './somiRequest'
 import { stageLabels, type Stage } from './stages'
 import type { SomiFormValues } from './types'
 
 type DecisionOffcanvasProps = {
   show: boolean
   stage: Stage
-  decision: FormDecision
+  decision: Decision
   // The title for submit, as on the button that opened it
   submitLabel?: string
   error?: string
   onClose: () => void
-  onSubmit: (data: SomiFormValues, decision: FormDecision) => Promise<void>
+  onSubmit: (data: SomiFormValues, decision: Decision) => Promise<void>
 }
 
 // The stage's decision form in a panel from the right. Expects a FormProvider above it, which holds
@@ -38,7 +39,7 @@ export function DecisionOffcanvas({
   )
 }
 
-function title(stage: Stage, decision: FormDecision, submitLabel?: string) {
+function title(stage: Stage, decision: Decision, submitLabel?: string) {
   switch (decision) {
     case 'approve':
       return `Approve ${stageLabels[stage]}`

@@ -1,17 +1,18 @@
 import type { DefaultValues } from 'react-hook-form'
 import { supabase } from '../supabase'
-import { uploadEstimate } from './estimateFile'
-import { hiddenFieldNames } from './fields'
+import { removeDocuments, uploadEstimate } from './documentFiles'
+import { hiddenFieldNames, stageFields } from './fields'
 import { approvedIndex } from './quantityEstimated'
 import { stageLabels, type Stage } from './stages'
-import type { Status } from './status'
+import { progressStatuses, workflow, type Status } from './status'
 import type { SomiFormValues } from './types'
 
-// approve and deny are for the approving stages; comment and cancel are for Sales; submit is for
-// the stages in submitLabels
-export type Decision = 'approve' | 'deny' | 'comment' | 'cancel' | 'submit'
+// approve and deny are for the approving stages; cancel is for Sales; submit is for the stages in
+// submitLabels
+export type Decision = 'approve' | 'deny' | 'cancel' | 'submit'
 
-// One entry in the comments column
+// One entry in the comments column. Comments are only added along with a decision, never on their
+// own.
 type SomiComment = {
   comment: string
   stage: Stage
@@ -64,7 +65,7 @@ export type SomiRequest = {
 }
 
 // The column each form field is saved to. estimateFile has no column, so it isn't saved. comments
-// isn't here either: only appendComment writes it, so a save can't overwrite it.
+// isn't here either: only appendComment and sendBackToStep write it, so a save can't overwrite it.
 // quantityEstimated is saved through estimateColumns below.
 const fieldColumns = {
   // Sales
@@ -175,6 +176,19 @@ function stageHeaderValue(stage: Stage) {
   return stageLabels[stage]
 }
 
+// Sent in place of the stage's label when sending a record back to a step, so the change log tells
+// moving it back apart from a stage completing its step
+const sentBackPrefix = 'Sent back by '
+
+export function isSentBack(entry: ChangeLogEntry) {
+  return entry.changed_by?.startsWith(sentBackPrefix) ?? false
+}
+
+// The label of the stage that sent the record back, for an entry isSentBack is true for
+export function sentBackBy(entry: ChangeLogEntry) {
+  return entry.changed_by?.slice(sentBackPrefix.length) ?? null
+}
+
 function unwrap<T>(result: { data: T; error: null } | { data: null; error: { message: string } }) {
   if (result.error) throw new Error(result.error.message)
   return result.data
@@ -259,6 +273,68 @@ export async function setStatus(id: string, status: Status, stage: Stage): Promi
       .select()
       .single<SomiRequest>(),
   )
+}
+
+// Undoes the step that moves a record to the given status and every step after it: the record goes
+// back to the status it had before that step, and what those steps' stages entered is deleted along
+// with their comments, so they can do their steps again. Going back from a cancellation undoes it
+// too, so its comment goes as well. stage is the one sending it back. Returns the row as stored.
+export async function sendBackToStep(
+  saved: SomiRequest,
+  step: Status,
+  stage: Stage,
+): Promise<SomiRequest> {
+  const index = progressStatuses.indexOf(step)
+  // The first step submits the request, so there's nothing before it to go back to
+  if (index < 1) throw new Error('This step cannot be undone.')
+  const undoneStages = workflow.filter((_, i) => i >= index).map((entry) => entry.stage)
+  const cleared = undoneStages.flatMap((s) => stageFields[s].map((def) => def.name))
+
+  const values: Record<string, unknown> = { ...toValues(saved) }
+  for (const name of cleared) {
+    values[name] =
+      name === 'quantityEstimated'
+        ? estimateColumns.map(() => ({ quantity: null, manufacturingCost: null }))
+        : null
+  }
+  const row = toRow(values as DefaultValues<SomiFormValues>)
+  const savedRow = toRow(toValues(saved))
+  const changes: Record<string, unknown> = Object.fromEntries(
+    Object.entries(row).filter(
+      ([column, value]) => comparable(value) !== comparable(savedRow[column]),
+    ),
+  )
+  changes.approval_status = progressStatuses[index - 1]
+
+  const kept = (comment: SomiComment) =>
+    !undoneStages.includes(comment.stage) && comment.decision !== 'cancel'
+
+  let sentBack: SomiRequest | undefined
+  for (let attempt = 0; attempt < 5 && !sentBack; attempt++) {
+    const { comments } = await fetchRequest(saved.id)
+    const update = table()
+      .update({ ...changes, comments: comments && comments.filter(kept) })
+      .eq('id', saved.id)
+      .setHeader(stageHeader, sentBackPrefix + stageHeaderValue(stage))
+
+    // Matches no rows if a comment arrived since the read above, so it's dealt with too; the next
+    // attempt reads it
+    const data = unwrap(
+      await (comments
+        ? update.eq('comments', JSON.stringify(comments))
+        : update.is('comments', null)
+      ).select(),
+    )
+    sentBack = data[0]
+  }
+  if (!sentBack) throw new Error('The record could not be sent back. Try again.')
+
+  // Not worth failing over, since the record has already gone back; a new estimate replaces it
+  // when Estimating submits again
+  if (cleared.includes('estimateFile')) {
+    await removeDocuments(saved.id, 'estimate').catch(() => {})
+  }
+  return sentBack
 }
 
 // Inserts a new request, or updates the one already saved along with any comment on it, and

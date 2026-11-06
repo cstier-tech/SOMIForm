@@ -20,10 +20,10 @@ export const submitLabels: Partial<Record<Stage, string>> = {
   webSupport: 'Enter Veracore Number',
 }
 
-// Used instead of submitLabels once the stage has submitted. Accounting's and Web Support's
-// numbers are required, so once they've submitted, the number has been entered.
+// Used instead of submitLabels once the stage has submitted; a stage left out has nothing left to
+// do then. Accounting's and Web Support's numbers are required, so once they've submitted, the
+// number has been entered. Estimating's estimate is redone by sending the record back to its step instead.
 export const resubmitLabels: Partial<Record<Stage, string>> = {
-  estimating: 'Re-Submit Estimate',
   accounting: 'Edit PSI Number',
   webSupport: 'Edit Veracore Number',
 }

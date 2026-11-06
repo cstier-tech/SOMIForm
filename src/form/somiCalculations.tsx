@@ -81,7 +81,7 @@ export function somiCalculations(request: SomiRequest): Calculation[] {
     calculation('Storage Charge', storageCharge, currency),
     calculation('Unit DM Cost from Est', unitCost, currency),
     calculation(`Mark-Up at ${markUp}`, markedUp, currency),
-    calculation('Storage Cost per Unit /mo.', monthlyStoragePerUnit, currency),
+    calculation('Unit Storage /mo.', monthlyStoragePerUnit, currency),
     calculation('Interest Rate /mo.', monthlyInterestRate, percent),
     calculation('Cost to Carry /mo.', monthlyCostToCarry, currency),
     calculation('Unit Cost to Carry /mo.', monthlyUnitCostToCarry, currency),

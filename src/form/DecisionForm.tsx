@@ -7,17 +7,18 @@ import type { Decision } from './somiRequest'
 import type { Stage } from './stages'
 import type { SomiFormValues } from './types'
 
-// Comments are only left with one of these, not on their own
-export type FormDecision = Exclude<Decision, 'comment'>
-
 type DecisionFormProps = {
   stage: Stage
-  decision: FormDecision
+  decision: Decision
   error?: string
-  onSubmit: (data: SomiFormValues, decision: FormDecision) => Promise<void>
+  onSubmit: (data: SomiFormValues, decision: Decision) => Promise<void>
 }
 
 const commentRequired = 'Comments are required'
+
+function hasText(value: unknown) {
+  return /\S/.test(typeof value === 'string' ? value : '')
+}
 
 // The form for the stage's decision, shown in DecisionOffcanvas. Approving or submitting saves the
 // stage's fields with an optional comment; denying and canceling save only the comment, which
@@ -38,7 +39,7 @@ export function DecisionForm({ stage, decision, error, onSubmit }: DecisionFormP
   const deny = async (event: FormEvent) => {
     event.preventDefault()
     clearErrors()
-    if (!/\S/.test(getValues('comment') ?? '')) {
+    if (!hasText(getValues('comment'))) {
       setError('comment', { type: 'required', message: commentRequired }, { shouldFocus: true })
       return
     }

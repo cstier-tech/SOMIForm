@@ -46,12 +46,6 @@ export function hiddenFieldNames(values: DefaultValues<SomiFormValues>) {
   )
 }
 
-// For the customer's agreements, shown as signed or not instead of Yes/No
-function formatSigned(value: unknown) {
-  if (typeof value !== 'boolean') return ''
-  return value ? 'Signed' : 'Not Signed'
-}
-
 // Each stage's fields, in the order they render
 export const stageFields: Record<Stage, FieldDef[]> = {
   sales: [
@@ -80,23 +74,33 @@ export const stageFields: Record<Stage, FieldDef[]> = {
     {
       name: 'monthlyConsumption',
       label: 'Customer Consumption per Month',
+      shortLabel: 'Consumption /mo.',
       kind: 'number',
       rules: { required: 'Customer consumption per month is required' },
       cols: 12,
     },
-    { name: 'soldAtStorefront', label: 'Item Product Sold at Storefront', kind: 'yesNo' },
-    { name: 'soldWithKits', label: 'Item Product Sold with Kits', kind: 'yesNo' },
+    {
+      name: 'soldAtStorefront',
+      label: 'Item Product Sold at Storefront',
+      shortLabel: 'Sold on Storefront',
+      kind: 'yesNo',
+    },
+    {
+      name: 'soldWithKits',
+      label: 'Item Product Sold with Kits',
+      shortLabel: 'Sold w/ Kits',
+      kind: 'yesNo',
+    },
     {
       name: 'understandsObsoleteResponsibility',
-      label: 'Customer Understands Responsible for Obsolete or Slow Moving Inventory',
+      label: 'Customer Accepts Responsibility for Obsolete or Slow-Moving Inventory',
       kind: 'yesNo',
-      formatValue: formatSigned,
     },
     {
       name: 'signedSomiAgreement',
       label: 'Customer Signed SOMI Agreement',
+      shortLabel: 'SOMI Agreement Signed',
       kind: 'yesNo',
-      formatValue: formatSigned,
     },
     { name: 'reorderPointsEstablished', label: 'Are Reorder Points Established', kind: 'yesNo' },
     {
@@ -147,7 +151,12 @@ export const stageFields: Record<Stage, FieldDef[]> = {
       component: QuantityEstimatedTable,
       formatValue: formatQuantityEstimated,
     },
-    { name: 'skidsRequired', label: 'Number of Skids Required to Inventory Item', kind: 'number' },
+    {
+      name: 'skidsRequired',
+      label: 'Number of Skids Required to Inventory Item',
+      shortLabel: '# of Skids Required to Inventory',
+      kind: 'number',
+    },
   ],
   manufacturing2: [
     {

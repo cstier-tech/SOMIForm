@@ -1,33 +1,15 @@
 import type { ReactNode } from 'react'
 import { get, type DefaultValues } from 'react-hook-form'
-import { Card, CardBody, CardHeader, Col, Row, Table } from 'oa'
+import { Alert, Card, CardBody, Col, Row, Table } from 'oa'
 import { hiddenFieldNames, stageFields, type FieldDef } from './fields'
-import { EstimateDownload } from './EstimateDownload'
-import { displayCell, estimatedMonths, monthsLabel } from './quantityEstimated'
+import { approvedIndex, displayCell, estimatedMonths, monthsLabel } from './quantityEstimated'
 import { somiCalculations } from './somiCalculations'
 import { toValues, type SomiRequest } from './somiRequest'
 import { stages } from './stages'
 import type { SomiFormValues } from './types'
-import type { ChangeLog } from './useChangeLog'
-import { WorkflowSteps } from './WorkflowSteps'
 
-type RecordDetailsProps = {
-  // The record as stored
-  request: SomiRequest
-  // From useChangeLog
-  changeLog: ChangeLog
-  // Shown at the end of the summary row, such as the Approve and Deny buttons
-  actions?: ReactNode
-}
-
-// Shown across the top, as well as in SOMI Details
-const summaryFields: FieldDef['name'][] = ['itemName', 'date', 'customer', 'customerNumber']
-
-// Shown in their own section, under SOMI Details
-const agreementFields: FieldDef['name'][] = [
-  'understandsObsoleteResponsibility',
-  'signedSomiAgreement',
-]
+// Shown across the top in this order, so not listed in SOMI Details
+const summaryFields: FieldDef['name'][] = ['itemName', 'customer', 'customerNumber', 'date']
 
 // Shown in their own section, above the estimates table
 const estimateDetailFields: FieldDef['name'][] = [
@@ -46,31 +28,65 @@ const approvedField: FieldDef['name'] = 'approvedMonths'
 const estimateFileField: FieldDef['name'] = 'estimateFile'
 
 // Not listed in SOMI Details. Reorder Points Established shows through the reorder point fields
-// only appearing when it's Yes, and Confirm TSP through Sales 2's approval in the Progress Tracker.
+// only appearing when it's Yes, and Confirm TSP through Sales 2's approval in the Progress Tracker sidebar.
 const unlistedFields: FieldDef['name'][] = ['reorderPointsEstablished', 'salesApprovesTsp']
 
 type Entry = { def: FieldDef; value: string }
 
-// Shows every field across all stages, with a dash for any not answered yet
-export function RecordDetails({
-  request,
-  changeLog,
-  actions,
-}: RecordDetailsProps) {
-  const values = toValues(request)
+// Every field across all stages that isn't hidden, with its value formatted
+function recordEntries(values: DefaultValues<SomiFormValues>): Entry[] {
   const hidden = hiddenFieldNames(values)
-
-  const all = stages
+  return stages
     .flatMap((stage) => stageFields[stage])
     .filter((def) => !hidden.has(def.name))
     .map((def) => ({ def, value: formatValue(def, get(values, def.name)) || '' }))//empty string for no value
-  const summary = all.filter((entry) => summaryFields.includes(entry.def.name))
+}
+
+type RecordSummaryProps = {
+  // The record as stored
+  request: SomiRequest
+  // Shown at the end of the summary row, such as the Approve and Deny buttons
+  actions?: ReactNode
+}
+
+// The record's key fields in a row, with the stage's action buttons at the end
+export function RecordSummary({ request, actions }: RecordSummaryProps) {
+  const summary = recordEntries(toValues(request))
+    .filter((entry) => summaryFields.includes(entry.def.name))
+    .sort((a, b) => summaryFields.indexOf(a.def.name) - summaryFields.indexOf(b.def.name))
+
+  if (summary.length === 0 && !actions) return null
+
+  return (
+    <div className="row mb-3 no-gutters">
+      {summary.map(({ def, value }, i) => (
+        <div
+          key={def.name}
+          className={`col-6 col-sm-3 col-md-auto px-3 py-2${i !== summary.length - 1 ? ' border-end' : ''}`}
+        >
+          <small className="text-muted">{labelFor(def)}</small>
+          <h5>{value}</h5>
+        </div>
+      ))}
+      {actions && (
+        <div className="col-12 col-md-auto ms-auto align-self-center d-flex gap-2 px-3 py-2">
+          {actions}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Shows every field across all stages, with a dash for any not answered yet. RecordSummary shows
+// the key fields above it.
+export function RecordDetails({ request }: { request: SomiRequest }) {
+  const values = toValues(request)
+  const all = recordEntries(values)
   const calculations = somiCalculations(request)
-  const agreements = all.filter((entry) => agreementFields.includes(entry.def.name))
   const estimateDetails = all.filter((entry) => estimateDetailFields.includes(entry.def.name))
   const entries = all.filter(
     (entry) =>
-      !agreementFields.includes(entry.def.name) &&
+      !summaryFields.includes(entry.def.name) &&
       !estimateDetailFields.includes(entry.def.name) &&
       entry.def.name !== estimateField &&
       entry.def.name !== approvedField &&
@@ -78,54 +94,29 @@ export function RecordDetails({
       !unlistedFields.includes(entry.def.name),
   )
 
-  const actionsCol = actions && (
-    <div className="col-12 col-md-auto ms-auto align-self-center d-flex gap-2 px-3 py-2">
-      {actions}
-    </div>
-  )
-
   return (
     <>
-      {(summary.length > 0 || actionsCol) && (
-        <div className="row mb-3 no-gutters">
-          {summary.map(({ def, value }, i) => (
-            <div
-              key={def.name}
-              className={`col-6 col-sm-3 col-md-auto px-3 py-2${i !== summary.length - 1 ? ' border-end' : ''}`}
-            >
-              <small className="text-muted">{labelFor(def)}</small>
-              <h5>{value}</h5>
-            </div>
+      {/* The calculations work from the approved months' estimate, so there's nothing to show
+          until one is approved */}
+      {approvedIndex(values.approvedMonths) >= 0 ? (
+        <Row className="sm-gutters mb-3">
+          {calculations.map(({ label, value, empty }) => (
+            <Col key={label} xs={6} md={4} className="mb-2 mt-1">
+              <Card className="h-100">
+                <CardBody>
+                  <small className="text-muted">{label}</small>
+                  <h5 className={empty ? 'h4 bg-o-0' : 'h4'}>{value}</h5>
+                </CardBody>
+              </Card>
+            </Col>
           ))}
-          {actionsCol}
-        </div>
+        </Row>
+      ) : (
+        <Alert variant="secondary">
+          Quantity and cost calculations will appear here when a quantity and manufacturing cost
+          estimate is approved.
+        </Alert>
       )}
-      {/* The Progress Tracker to the left of the calculation cards from lg up, stacked above them
-          below that */}
-      <Row className="mb-3">
-        <Col lg={5}>
-          <Card className="mb-3">
-            <CardHeader className='font-weight-600'>
-              Progress Tracker
-            </CardHeader>
-            <WorkflowSteps request={request} changeLog={changeLog.entries} />
-          </Card>
-        </Col>
-        <Col lg={7}>
-          <Row className="sm-gutters">
-            {calculations.map(({ label, value, empty }) => (
-              <Col key={label} xs={6} lg={4} className="mb-2 mt-1">
-                <Card className="h-100">
-                  <CardBody>
-                    <small className="text-muted">{label}</small>
-                    <h5 className={empty ? 'h4 bg-o-0' : 'h4'}>{value}</h5>
-                  </CardBody>
-                </Card>
-              </Col>
-            ))}
-          </Row>
-        </Col>
-      </Row>
       {/* Side by side from md up, stacked below that */}
       <Row className="mb-3">
         <Col md>
@@ -135,20 +126,10 @@ export function RecordDetails({
               <EntriesList entries={entries} />
             </div>
           )}
-          {agreements.length > 0 && (
-            <div className='mb-3'>
-              <h4>Customer Agreements</h4>
-              <EntriesList entries={agreements} />
-            </div>
-          )}
         </Col>
         <Col md>
           <div className="mb-3">
-            {/* The download button sits at the end of the heading's line */}
-            <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
-              <h4 className="mb-0">Estimate Details</h4>
-              <EstimateDownload request={request} />
-            </div>
+            <h4>Estimate Details</h4>
             <EntriesList entries={estimateDetails} />
           </div>
           <h4>Quantity Estimated</h4>
