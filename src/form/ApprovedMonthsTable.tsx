@@ -1,6 +1,6 @@
 import { useFormContext, useWatch } from 'react-hook-form'
 import { FormCheck, FormGroup, FormLabel, Table } from 'oa'
-import { estimatedMonths, isFilled, type EstimateRow } from './quantityEstimated'
+import { displayCell, estimatedMonths, monthsLabel, type EstimateRow } from './quantityEstimated'
 import type { SomiFormValues } from './types'
 
 export function ApprovedMonthsTable() {
@@ -30,7 +30,7 @@ export function ApprovedMonthsTable() {
                   type="radio"
                   id={`approvedMonths-${months}`}
                   aria-label={`Approve ${months} month(s)`}
-                  value={months === 1 ? '1 Month' : `${months} Months`}
+                  value={monthsLabel(months)}
                   {...registration}
                 />
               </td>
@@ -43,8 +43,4 @@ export function ApprovedMonthsTable() {
       </Table>
     </FormGroup>
   )
-}
-
-function displayCell(cell?: number) {
-  return isFilled(cell) ? cell : '—'
 }

@@ -1,8 +1,12 @@
 import { Button, Table } from 'oa'
 import { recordHref } from './recordLink'
 import type { SomiRequest } from './somiRequest'
+import { StatusBadge } from './StatusBadge'
 
-const columns: { label: string; column: Exclude<keyof SomiRequest, 'comments'> }[] = [
+const columns: {
+  label: string
+  column: Exclude<keyof SomiRequest, 'comments' | 'approval_status'>
+}[] = [
   { label: 'Date', column: 'date' },
   { label: 'Customer Name', column: 'customer_name' },
   { label: 'Customer Number', column: 'customer_number' },
@@ -25,6 +29,7 @@ export function RequestsTable({ requests }: { requests: SomiRequest[] }) {
           {columns.map(({ label }) => (
             <th key={label}>{label}</th>
           ))}
+          <th>Status</th>
           <th aria-label="Actions" />
         </tr>
       </thead>
@@ -34,6 +39,9 @@ export function RequestsTable({ requests }: { requests: SomiRequest[] }) {
             {columns.map(({ column }) => (
               <td key={column}>{request[column]}</td>
             ))}
+            <td>
+              <StatusBadge status={request.approval_status} />
+            </td>
             <td>
               <Button size="sm" href={recordHref(request.id)}>
                 View

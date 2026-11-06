@@ -21,7 +21,6 @@ export type SomiFormValues = {
   estimator: string
   estimatingSystem: string
   quantityEstimated: { quantity: number; manufacturingCost: number }[]
-  totalDirectManufacturingCost: string
   skidsRequired: number
   // Manufacturing 2
   approvedMonths: string
@@ -31,7 +30,6 @@ export type SomiFormValues = {
   psiNumber: string
   // Web Support
   veracoreNumber: string
-  // Added to the comments column when the form is submitted, rather than kept as values
-  approveComment: string
-  denyComment: string
+  // Added to the comments column with the stage's decision, rather than kept as a value
+  comment: string
 }

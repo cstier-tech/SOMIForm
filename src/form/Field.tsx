@@ -71,6 +71,8 @@ function InputField({ def }: { def: FieldDef }) {
             as={def.kind === 'textarea' ? 'textarea' : undefined}
             type={def.kind === 'textarea' ? undefined : def.kind}
             min={def.kind === 'number' ? 0 : undefined}
+            // Allows decimals
+            step={def.kind === 'number' ? 'any' : undefined}
             {...registration}
             isInvalid={!!error}
           />

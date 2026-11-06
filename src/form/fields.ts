@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react'
-import type { Path, RegisterOptions } from 'react-hook-form'
+import type { DefaultValues, Path, RegisterOptions } from 'react-hook-form'
 import { ApprovedMonthsTable } from './ApprovedMonthsTable'
+import { ConfirmTspCheckbox } from './ConfirmTspCheckbox'
 import { formatQuantityEstimated } from './quantityEstimated'
 import { QuantityEstimatedTable } from './QuantityEstimatedTable'
 import type { Stage } from './stages'
@@ -9,6 +10,8 @@ import type { SomiFormValues } from './types'
 export type FieldDef = {
   name: Path<SomiFormValues>
   label: string
+  // A shorter label for the record view
+  shortLabel?: string
   // The input to render; defaults to a text input
   kind?: 'number' | 'date' | 'textarea' | 'yesNo' | 'radio' | 'file'
   // Grid columns out of 12 from the md breakpoint up; defaults to 12 (full width)
@@ -20,6 +23,33 @@ export type FieldDef = {
   // For values that aren't a plain string, number, boolean or file list; returns ''
   // when nothing has been filled in
   formatValue?: (value: unknown) => string
+  // Shown only when this returns true. A hidden field isn't validated, and it's saved as empty so
+  // an answer given before it was hidden doesn't linger.
+  showIf?: (values: DefaultValues<SomiFormValues>) => boolean
+}
+
+function reorderPointsEstablished(values: DefaultValues<SomiFormValues>) {
+  return values.reorderPointsEstablished === true
+}
+
+// Every field across all stages, plus the comment field
+export function allFields() {
+  return [...Object.values(stageFields).flat(), decisionCommentField]
+}
+
+// The names of fields hidden for these values
+export function hiddenFieldNames(values: DefaultValues<SomiFormValues>) {
+  return new Set(
+    allFields()
+      .filter((def) => def.showIf && !def.showIf(values))
+      .map((def) => def.name),
+  )
+}
+
+// For the customer's agreements, shown as signed or not instead of Yes/No
+function formatSigned(value: unknown) {
+  if (typeof value !== 'boolean') return ''
+  return value ? 'Signed' : 'Not Signed'
 }
 
 // Each stage's fields, in the order they render
@@ -29,16 +59,24 @@ export const stageFields: Record<Stage, FieldDef[]> = {
     {
       name: 'customer',
       label: 'Customer Name',
+      shortLabel: 'Customer',
       rules: { required: 'Customer name is required' },
       cols: 6,
     },
     {
       name: 'customerNumber',
       label: 'Customer Number',
+      shortLabel: 'Customer #',
       rules: { required: 'Customer number is required' },
       cols: 6,
     },
-    { name: 'itemName', label: 'Item Name', rules: { required: 'Item name is required' }, cols: 6 },
+    {
+      name: 'itemName',
+      label: 'Item Name',
+      shortLabel: 'Item',
+      rules: { required: 'Item name is required' },
+      cols: 6,
+    },
     {
       name: 'monthlyConsumption',
       label: 'Customer Consumption per Month',
@@ -52,14 +90,28 @@ export const stageFields: Record<Stage, FieldDef[]> = {
       name: 'understandsObsoleteResponsibility',
       label: 'Customer Understands Responsible for Obsolete or Slow Moving Inventory',
       kind: 'yesNo',
+      formatValue: formatSigned,
     },
-    { name: 'signedSomiAgreement', label: 'Customer Signed SOMI Agreement', kind: 'yesNo' },
+    {
+      name: 'signedSomiAgreement',
+      label: 'Customer Signed SOMI Agreement',
+      kind: 'yesNo',
+      formatValue: formatSigned,
+    },
     { name: 'reorderPointsEstablished', label: 'Are Reorder Points Established', kind: 'yesNo' },
-    { name: 'reorderPointQuantity', label: 'Reorder Point Quantity', kind: 'number', cols: 6 },
+    {
+      name: 'reorderPointQuantity',
+      label: 'Reorder Point Quantity',
+      kind: 'number',
+      rules: { required: 'Reorder point quantity is required' },
+      showIf: reorderPointsEstablished,
+      cols: 6,
+    },
     {
       name: 'reorderMonitor',
       label: 'Who Monitors Reorders',
       rules: { required: 'Who monitors reorders is required' },
+      showIf: reorderPointsEstablished,
       cols: 6,
     },
     {
@@ -73,6 +125,7 @@ export const stageFields: Record<Stage, FieldDef[]> = {
     {
       name: 'process',
       label: 'Process to Produce Product',
+      shortLabel: 'Process',
       kind: 'radio',
       options: ['Litho', 'Digital', 'EB'],
     },
@@ -80,11 +133,11 @@ export const stageFields: Record<Stage, FieldDef[]> = {
   ],
   estimating: [
     { name: 'estimateFile', label: 'Estimate', kind: 'file' },
-    // TODO: fill in estimator names
-    { name: 'estimator', label: 'Estimator', kind: 'radio', options: [] },
+    { name: 'estimator', label: 'Estimator' },
     {
       name: 'estimatingSystem',
       label: 'Estimating System',
+      shortLabel: 'Estimated In',
       kind: 'radio',
       options: ['PSI', 'Filemaker', 'Print IQ'],
     },
@@ -93,10 +146,6 @@ export const stageFields: Record<Stage, FieldDef[]> = {
       label: 'Quantity Estimated',
       component: QuantityEstimatedTable,
       formatValue: formatQuantityEstimated,
-    },
-    {
-      name: 'totalDirectManufacturingCost',
-      label: 'Total Direct Manufacturing Costs from Estimate',
     },
     { name: 'skidsRequired', label: 'Number of Skids Required to Inventory Item', kind: 'number' },
   ],
@@ -107,26 +156,23 @@ export const stageFields: Record<Stage, FieldDef[]> = {
       component: ApprovedMonthsTable,
     },
   ],
-  sales2: [{ name: 'salesApprovesTsp', label: 'Sales Approves TSP', kind: 'yesNo' }],
-  accounting: [{ name: 'psiNumber', label: 'PSI Number' }],
-  webSupport: [{ name: 'veracoreNumber', label: 'Veracore Number' }],
+  sales2: [{ name: 'salesApprovesTsp', label: 'Confirm TSP', component: ConfirmTspCheckbox }],
+  accounting: [
+    { name: 'psiNumber', label: 'PSI Number', rules: { required: 'PSI number is required' } },
+  ],
+  webSupport: [
+    {
+      name: 'veracoreNumber',
+      label: 'Veracore Number',
+      rules: { required: 'Veracore number is required' },
+    },
+  ],
 }
 
-// These two follow the Approve or Deny choice instead of a stage. They're separate fields so a
-// comment started for one choice can't be submitted under the other.
-export const approveCommentField: FieldDef = {
-  name: 'approveComment',
+// Saved with the stage's decision rather than kept as a value. Denying requires it, which
+// DecisionForm checks itself since approving with the same form doesn't.
+export const decisionCommentField: FieldDef = {
+  name: 'comment',
   label: 'Comments',
   kind: 'textarea',
-}
-
-export const denyCommentField: FieldDef = {
-  name: 'denyComment',
-  label: 'Comments',
-  kind: 'textarea',
-  rules: {
-    required: 'Comments are required',
-    // required alone would accept a comment of only spaces
-    pattern: { value: /\S/, message: 'Comments are required' },
-  },
 }

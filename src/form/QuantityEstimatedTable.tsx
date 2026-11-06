@@ -1,41 +1,51 @@
 import { useFormContext, type Path } from 'react-hook-form'
-import { FormControl, FormGroup, FormLabel, Table } from 'oa'
+import { Col, FormControl, FormGroup, Row } from 'oa'
 import { estimatedMonths } from './quantityEstimated'
 import type { SomiFormValues } from './types'
+
+// Months, Estimated Quantity and Estimated Manufacturing Cost, as grid columns at every width
+const columns = [
+  { label: 'Months', xs: 1 },
+  // Split what's left evenly
+  { label: 'Estimated Quantity', xs: true },
+  { label: 'Estimated Manufacturing Cost', xs: true },
+]
 
 export function QuantityEstimatedTable() {
   return (
     <FormGroup>
-      <FormLabel>Quantity Estimated</FormLabel>
-      <Table bordered size="sm">
-        <thead>
-          <tr>
-            <th>Months</th>
-            <th>Quantity</th>
-            <th>Manufacturing Cost</th>
-          </tr>
-        </thead>
-        <tbody>
-          {estimatedMonths.map((months, index) => (
-            <tr key={months}>
-              <td>{months}</td>
-              <td>
-                <NumberCell
-                  name={`quantityEstimated.${index}.quantity`}
-                  label={`Quantity for ${months} month(s)`}
-                />
-              </td>
-              <td>
-                <NumberCell
-                  name={`quantityEstimated.${index}.manufacturingCost`}
-                  label={`Manufacturing cost for ${months} month(s)`}
-                  step="0.01"
-                />
-              </td>
-            </tr>
+      <div role="table" aria-label="Quantity Estimated">
+        <Row role="row" className="m-0">
+          {columns.map(({ label, xs }) => (
+            <Col key={label} role="columnheader" xs={xs} className="h5 mb-0 p-2">
+              {label}
+            </Col>
           ))}
-        </tbody>
-      </Table>
+        </Row>
+        {estimatedMonths.map((months, index) => (
+          <Row key={months} role="row" className="m-0">
+            <Col
+              role="cell"
+              xs={columns[0].xs}
+              className="d-flex align-items-center h5 mb-0 p-2"
+            >
+              {months}
+            </Col>
+            <Col role="cell" xs={columns[1].xs} className="p-2">
+              <NumberCell
+                name={`quantityEstimated.${index}.quantity`}
+                label={`Quantity for ${months} month(s)`}
+              />
+            </Col>
+            <Col role="cell" xs={columns[1].xs} className="p-2">
+              <NumberCell
+                name={`quantityEstimated.${index}.manufacturingCost`}
+                label={`Manufacturing cost for ${months} month(s)`}
+              />
+            </Col>
+          </Row>
+        ))}
+      </div>
     </FormGroup>
   )
 }
@@ -43,17 +53,17 @@ export function QuantityEstimatedTable() {
 type NumberCellProps = {
   name: Path<SomiFormValues>
   label: string
-  step?: string
 }
 
-function NumberCell({ name, label, step }: NumberCellProps) {
+function NumberCell({ name, label }: NumberCellProps) {
   const { register } = useFormContext<SomiFormValues>()
 
   return (
     <FormControl
       type="number"
       min={0}
-      step={step}
+      // Allows decimals
+      step="any"
       aria-label={label}
       {...register(name, { valueAsNumber: true })}
     />
